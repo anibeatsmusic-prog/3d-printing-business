@@ -116,7 +116,6 @@ export async function POST(request: NextRequest) {
       });
 
       itemsData.push({
-        type: 'custom',
         fileName: file.name,
         material,
         color,
