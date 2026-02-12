@@ -116,6 +116,7 @@ export async function POST(request: NextRequest) {
       });
 
       itemsData.push({
+        type: 'custom',
         fileName: file.name,
         material,
         color,
@@ -148,6 +149,7 @@ export async function POST(request: NextRequest) {
         orderNumber: order.orderNumber,
         totalAmount: order.totalAmount,
         estimatedDelivery: order.estimatedDelivery,
+        items: itemsData,
       },
       message: 'Order submitted successfully',
     });
