@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
         material,
         color,
         quantity,
-        price: item.totalPrice,
+        price: Number(item.totalPrice),
       });
     }
 
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
       order: {
         id: order.id,
         orderNumber: order.orderNumber,
-        totalAmount: order.totalAmount,
+        totalAmount: Number(order.totalAmount),
         estimatedDelivery: order.estimatedDelivery,
         items: itemsData,
       },
@@ -196,7 +196,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ orders: user.orders });
+    const serializedOrders = user.orders.map(order => ({
+      ...order,
+      totalAmount: Number(order.totalAmount),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.totalPrice),
+        unitPrice: Number(item.unitPrice),
+      }))
+    }));
+
+    return NextResponse.json({ orders: serializedOrders });
 
   } catch (error) {
     console.error('Error fetching orders:', error);
