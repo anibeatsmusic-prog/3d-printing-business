@@ -29,7 +29,17 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ order });
+    const serializedOrder = {
+      ...order,
+      totalAmount: Number(order.totalAmount),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.totalPrice),
+        unitPrice: Number(item.unitPrice),
+      }))
+    };
+
+    return NextResponse.json({ order: serializedOrder });
 
   } catch (error) {
     console.error('Error fetching order:', error);
@@ -57,7 +67,17 @@ export async function PATCH(
       data: updateData,
     });
 
-    return NextResponse.json({ order });
+    const serializedOrder = {
+      ...order,
+      totalAmount: Number(order.totalAmount),
+      items: order.items.map(item => ({
+        ...item,
+        price: Number(item.totalPrice),
+        unitPrice: Number(item.unitPrice),
+      }))
+    };
+
+    return NextResponse.json({ order: serializedOrder });
 
   } catch (error) {
     console.error('Error updating order:', error);
