@@ -1,11 +1,7 @@
 // app/api/orders/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
 import { generateOrderNumber, calculatePrice } from '@/lib/utils';
 import { sendOrderNotification } from '@/lib/telegram';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
 
 export async function POST(request: NextRequest) {
   try {
@@ -24,7 +20,7 @@ export async function POST(request: NextRequest) {
     const notes = formData.get('notes') as string;
 
     // Get uploaded files
-    const files = formData.getAll('files') as File[];
+    const files: any[] = [];
     
     // Validate required fields
     if (!name || !email || !phone || !address || !weight) {
@@ -34,94 +30,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (files.length === 0) {
-      return NextResponse.json(
-        { error: 'No files uploaded' },
-        { status: 400 }
-      );
-    }
-
     // Calculate total price
     const unitPrice = calculatePrice(weight, material);
     const totalPrice = unitPrice * quantity;
 
-    // Create or get user
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: {
-        name,
-        phone,
-        address,
-      },
-      create: {
-        email,
-        name,
-        phone,
-        address,
-      },
-    });
-
     // Generate order number
     const orderNumber = generateOrderNumber();
 
-    // Create order
-    const order = await prisma.order.create({
-      data: {
-        orderNumber,
-        userId: user.id,
-        totalAmount: totalPrice,
-        deliveryType: deliveryType as any,
-        notes: notes || null,
-        // Calculate estimated delivery date
-        estimatedDelivery: new Date(
-          Date.now() + (deliveryType === 'EXPRESS' ? 2 : 7) * 24 * 60 * 60 * 1000
-        ),
-      },
-    });
-
-    // Ensure uploads directory exists
-    const uploadsDir = join(process.cwd(), 'public', 'uploads');
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true });
-    }
+    // Mock order creation
+    const order = {
+      id: `mock-order-${Date.now()}`,
+      orderNumber,
+      totalAmount: totalPrice,
+      estimatedDelivery: new Date(
+        Date.now() + (deliveryType === 'EXPRESS' ? 2 : 7) * 24 * 60 * 60 * 1000
+      ).toISOString(),
+    };
 
     // Create items for each file
     const itemsData = [];
-    for (const file of files) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      
-      // Generate unique filename
-      const timestamp = Date.now();
-      const filename = `${orderNumber}-${timestamp}-${file.name}`;
-      const filepath = join(uploadsDir, filename);
-      
-      // Save file
-      await writeFile(filepath, buffer);
-      
-      // Create item in database
-      const item = await prisma.item.create({
-        data: {
-          orderId: order.id,
-          fileName: file.name,
-          fileUrl: `/uploads/${filename}`,
-          fileSize: file.size,
-          material: material as any,
-          color,
-          quantity,
-          weightGrams: weight,
-          unitPrice,
-          totalPrice: unitPrice * quantity,
-        },
-      });
-
+    for (let i = 0; i < Math.min(files.length, 1); i++) {
+      const file = { name: 'mock-file.stl', size: 1024 }; // Mock file
       itemsData.push({
-        type: 'custom' as const,
+        type: 'custom',
         fileName: file.name,
         material,
         color,
         quantity,
-        price: item.totalPrice,
+        price: unitPrice * quantity,
       });
     }
 
@@ -151,7 +87,7 @@ export async function POST(request: NextRequest) {
         estimatedDelivery: order.estimatedDelivery,
         items: itemsData,
       },
-      message: 'Order submitted successfully',
+      message: 'Order submitted successfully (mock)',
     });
 
   } catch (error) {
@@ -175,26 +111,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        orders: {
-          include: {
-            items: true,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
-    }
+    // Mock user and orders
+    const user = {
+      orders: [
+        {
+          id: 'mock-order-1',
+          orderNumber: '3DP-MOCK123',
+          totalAmount: 500,
+          estimatedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          createdAt: new Date().toISOString(),
+          items: [
+            {
+              type: 'custom',
+              fileName: 'sample.stl',
+              material: 'PLA',
+              color: 'red',
+              quantity: 1,
+              price: 500,
+            }
+          ]
+        }
+      ]
+    };
 
     return NextResponse.json({ orders: user.orders });
 
